@@ -29,16 +29,14 @@ def preprocess(pics):
     temp -= 1
     return temp
 
-import cv2
-
-
-temp = []
-
-fullname = "output/imgs" + '/' + "fakeA_89_8"
-
-temp.append(np.expand_dims(cv2.imread(fullname),axis=0))
-
-fullname = "output/imgs - Copy" + '/' + "inputA_36_8"
-temp.append(np.expand_dims(cv2.imread(fullname),axis=0))
-
-cv2.imwrite("temp", combine_images(np.vstack(temp)))
+# import cv2
+# temp = []
+#
+# fullname = "output/imgs" + '/' + "fakeA_89_8"
+#
+# temp.append(np.expand_dims(cv2.imread(fullname),axis=0))
+#
+# fullname = "output/imgs - Copy" + '/' + "inputA_36_8"
+# temp.append(np.expand_dims(cv2.imread(fullname),axis=0))
+#
+# cv2.imwrite("temp", combine_images(np.vstack(temp)))
