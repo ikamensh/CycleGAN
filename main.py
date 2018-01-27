@@ -19,7 +19,6 @@ check_dir = "./output/checkpoints/"
 img_dir = "./output/imgs/"
 temp_check = 0
 
-max_epoch = 1
 max_images = 606
 batch_size = 1
 pool_size = 100
