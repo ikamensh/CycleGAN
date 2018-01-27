@@ -3,13 +3,16 @@ import tensorflow as tf
 from tensorflow.python.keras.layers import Conv2D, Conv2DTranspose, Input, Flatten, Dense, BatchNormalization
 from tensorflow.python.keras.models import Model
 from tensorflow.python.keras import backend as K
+import memory_saving_gradients
+
+tf.__dict__["gradients"] = memory_saving_gradients.gradients_memory
 
 img_height = 256
 img_width = 256
 img_layer = 3
 img_size = img_height * img_width
 
-batch_size = 1
+batch_size = 4
 pool_size = 50
 n_units_gen = 32
 n_units_disc = 64
