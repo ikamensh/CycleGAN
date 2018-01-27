@@ -73,6 +73,8 @@ class CycleGAN:
             self.cyc_A = build_generator_resnet_9blocks(self.fake_B, "g_A")
             self.cyc_B = build_generator_resnet_9blocks(self.fake_A, "g_B")
 
+            scope.reuse_variables()
+
             self.fake_pool_rec_A = build_gen_discriminator(slcA, "d_A")
             self.fake_pool_rec_B = build_gen_discriminator(slcB, "d_B")
 
@@ -112,6 +114,7 @@ class CycleGAN:
         d_B_vars = [var for var in self.model_vars if 'd_B' in var.name]
         g_B_vars = [var for var in self.model_vars if 'g_B' in var.name]
 
+        self.model_vars = d_A_vars + d_B_vars + g_A_vars + g_B_vars
 
 
         
