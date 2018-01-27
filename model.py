@@ -1,17 +1,8 @@
-# Basic Code is taken from https://github.com/ckmarkoh/GAN-tensorflow
-
 import tensorflow as tf
-import numpy as np
-from scipy.misc import imsave
-import os
-import shutil
-import time
-import random
 
-
-
-
-from layers import *
+from tensorflow.python.keras.layers import Conv2D, Conv2DTranspose, Input, Flatten, Dense, BatchNormalization
+from tensorflow.python.keras.models import Model
+from tensorflow.python.keras import backend as K
 
 img_height = 256
 img_width = 256
@@ -23,104 +14,84 @@ pool_size = 50
 n_units_gen = 32
 n_units_disc = 64
 
+K.set_learning_phase(True)
+
 
 def build_resnet_block(inputres, dim, name="resnet"):
     
     with tf.variable_scope(name):
 
-        out_res = tf.pad(inputres, [[0, 0], [1, 1], [1, 1], [0, 0]], "REFLECT")
-        out_res = general_conv2d(out_res, dim, 3, 3, 1, 1, 0.02, "VALID","c1")
-        out_res = tf.pad(out_res, [[0, 0], [1, 1], [1, 1], [0, 0]], "REFLECT")
-        out_res = general_conv2d(out_res, dim, 3, 3, 1, 1, 0.02, "VALID","c2",do_relu=False)
-        
-        return tf.nn.relu(out_res + inputres)
+        out_res = Conv2D(dim, kernel_size= (3,3), padding='same', activation='selu') (inputres)
+        out_res = Conv2D(dim, kernel_size=(3, 3), padding='same', activation='selu') (out_res)
+        out_res = BatchNormalization()(out_res)
+
+        return out_res
 
 
-def build_generator_resnet_6blocks(inputgen, name="generator"):
+def build_generator_resnet_n_blocks(input_shape, n, name="generator"):
     with tf.variable_scope(name):
-        f = 7
         ks = 3
         
-        pad_input = tf.pad(inputgen,[[0, 0], [ks, ks], [ks, ks], [0, 0]], "REFLECT")
-        o_c1 = general_conv2d(pad_input, n_units_gen, f, f, 1, 1, 0.02, name="c1")
-        o_c2 = general_conv2d(o_c1, n_units_gen * 2, ks, ks, 2, 2, 0.02, "SAME", "c2")
-        o_c3 = general_conv2d(o_c2, n_units_gen * 4, ks, ks, 2, 2, 0.02, "SAME", "c3")
+        inp = Input(input_shape)
 
-        o_r1 = build_resnet_block(o_c3, n_units_gen * 4, "r1")
-        o_r2 = build_resnet_block(o_r1, n_units_gen * 4, "r2")
-        o_r3 = build_resnet_block(o_r2, n_units_gen * 4, "r3")
-        o_r4 = build_resnet_block(o_r3, n_units_gen * 4, "r4")
-        o_r5 = build_resnet_block(o_r4, n_units_gen * 4, "r5")
-        o_r6 = build_resnet_block(o_r5, n_units_gen * 4, "r6")
+        img = Conv2D(n_units_gen, kernel_size=[ks, ks], activation='selu') (inp)
+        img = BatchNormalization()(img)
+        img = Conv2D(n_units_gen*2, kernel_size=[ks, ks], strides=[2,2], padding='same', activation='selu') (img)
+        img = Conv2D(n_units_gen*4, kernel_size=[ks, ks], strides=[2,2], padding='same',activation='selu') (img)
+        img = BatchNormalization()(img)
 
-        o_c4 = general_deconv2d(o_r6, [batch_size, 64, 64, n_units_gen * 2], n_units_gen * 2, ks, ks, 2, 2, 0.02, "SAME", "c4")
-        o_c5 = general_deconv2d(o_c4, [batch_size, 128, 128, n_units_gen], n_units_gen, ks, ks, 2, 2, 0.02, "SAME", "c5")
-        o_c5_pad = tf.pad(o_c5,[[0, 0], [ks, ks], [ks, ks], [0, 0]], "REFLECT")
-        o_c6 = general_conv2d(o_c5_pad, img_layer, f, f, 1, 1, 0.02,"VALID","c6",do_relu=False)
+        for i in range(n):
+            img = build_resnet_block(img, n_units_gen * 4, "r{}".format(i))
 
-        # Adding the tanh layer
+        img = Conv2DTranspose(n_units_gen*2, kernel_size=[ks, ks], strides=[2, 2], padding='same',
+                              activation='selu') (img)
+        img = BatchNormalization()(img)
+        img = Conv2DTranspose(n_units_gen, kernel_size=[ks, ks], strides=[2, 2], padding='same',
+                              activation='selu') (img)
+        img = Conv2D(3, kernel_size=[7, 7], padding='same', activation='tanh') (img)
 
-        out_gen = tf.nn.tanh(o_c6,"t1")
+        return Model(inp,img)
 
-
-        return out_gen
-
-def build_generator_resnet_9blocks(inputgen, name="generator"):
-    with tf.variable_scope(name):
-        kernel_side = 7
-        stride = 3
-        
-        pad_input = tf.pad(inputgen,[[0, 0], [stride, stride], [stride, stride], [0, 0]], "REFLECT")
-        o_c1 = general_conv2d(pad_input, n_units_gen, kernel_side, kernel_side, 1, 1, 0.02, name="c1")
-        o_c2 = general_conv2d(o_c1, n_units_gen * 2, stride, stride, 2, 2, 0.02, "SAME", "c2")
-        o_c3 = general_conv2d(o_c2, n_units_gen * 4, stride, stride, 2, 2, 0.02, "SAME", "c3")
-
-        o_r1 = build_resnet_block(o_c3, n_units_gen * 4, "r1")
-        o_r2 = build_resnet_block(o_r1, n_units_gen * 4, "r2")
-        o_r3 = build_resnet_block(o_r2, n_units_gen * 4, "r3")
-        o_r4 = build_resnet_block(o_r3, n_units_gen * 4, "r4")
-        o_r5 = build_resnet_block(o_r4, n_units_gen * 4, "r5")
-        o_r6 = build_resnet_block(o_r5, n_units_gen * 4, "r6")
-        o_r7 = build_resnet_block(o_r6, n_units_gen * 4, "r7")
-        o_r8 = build_resnet_block(o_r7, n_units_gen * 4, "r8")
-        o_r9 = build_resnet_block(o_r8, n_units_gen * 4, "r9")
-
-        o_c4 = general_deconv2d(o_r9, [batch_size, 128, 128, n_units_gen * 2], n_units_gen * 2, stride, stride, 2, 2, 0.02, "SAME", "c4")
-        o_c5 = general_deconv2d(o_c4, [batch_size, 256, 256, n_units_gen], n_units_gen, stride, stride, 2, 2, 0.02, "SAME", "c5")
-        o_c6 = general_conv2d(o_c5, img_layer, kernel_side, kernel_side, 1, 1, 0.02,"SAME","c6",do_relu=False)
-
-        # Adding the tanh layer
-
-        out_gen = tf.nn.tanh(o_c6,"t1")
-
-
-        return out_gen
-
-
-def build_gen_discriminator(inputdisc, name="discriminator"):
+def build_discriminator(input_shape, n, name="discriminator"):
 
     with tf.variable_scope(name):
         f = 4
 
-        o_c1 = general_conv2d(inputdisc, n_units_disc, f, f, 2, 2, 0.02, "SAME", "c1", do_norm=False, relufactor=0.2)
-        o_c2 = general_conv2d(o_c1, n_units_disc * 2, f, f, 2, 2, 0.02, "SAME", "c2", relufactor=0.2)
-        o_c3 = general_conv2d(o_c2, n_units_disc * 4, f, f, 2, 2, 0.02, "SAME", "c3", relufactor=0.2)
-        o_c4 = general_conv2d(o_c3, n_units_disc * 8, f, f, 1, 1, 0.02, "SAME", "c4", relufactor=0.2)
-        o_c5 = general_conv2d(o_c4, 1, f, f, 1, 1, 0.02, "SAME", "c5",do_norm=False,do_relu=False)
+        inp = Input(input_shape)
 
-        return o_c5
+        c = Conv2D(n_units_gen, kernel_size=[f, f], strides=[2,2], activation='selu')(inp)
+        c = BatchNormalization()(c)
+
+        for i in range(n-2):
+            c = Conv2D(min(n_units_gen * (2**i),256), kernel_size=[f, f], strides=[2, 2], activation='selu')(c)
+
+        c = Conv2D(min(n_units_gen * (2 ** n), 512), kernel_size=[f, f], activation='selu')(c)
+        c = BatchNormalization()(c)
+        c = Conv2D(min(n_units_gen * (2 ** n), 512), kernel_size=[f, f], activation='selu')(c)
+        c = Flatten() (c)
+        c = Dense(1, activation='sigmoid')(c)
+
+        return Model(inp, c)
 
 
-def patch_discriminator(inputdisc, name="discriminator"):
+# def patch_discriminator(inputdisc, name="discriminator"):
+#
+#     with tf.variable_scope(name):
+#         f= 4
+#
+#         patch_input = tf.random_crop(inputdisc,[1,70,70,3])
+#         o_c1 = general_conv2d(patch_input, n_units_disc, f, f, 2, 2, 0.02, "SAME", "c1", do_norm="False", relufactor=0.2)
+#         o_c2 = general_conv2d(o_c1, n_units_disc * 2, f, f, 2, 2, 0.02, "SAME", "c2", relufactor=0.2)
+#         o_c3 = general_conv2d(o_c2, n_units_disc * 4, f, f, 2, 2, 0.02, "SAME", "c3", relufactor=0.2)
+#         o_c4 = general_conv2d(o_c3, n_units_disc * 8, f, f, 2, 2, 0.02, "SAME", "c4", relufactor=0.2)
+#         o_c5 = general_conv2d(o_c4, 1, f, f, 1, 1, 0.02, "SAME", "c5",do_norm=False,do_relu=False)
+#
+#         return o_c5
 
-    with tf.variable_scope(name):
-        f= 4
 
-        patch_input = tf.random_crop(inputdisc,[1,70,70,3])
-        o_c1 = general_conv2d(patch_input, n_units_disc, f, f, 2, 2, 0.02, "SAME", "c1", do_norm="False", relufactor=0.2)
-        o_c2 = general_conv2d(o_c1, n_units_disc * 2, f, f, 2, 2, 0.02, "SAME", "c2", relufactor=0.2)
-        o_c3 = general_conv2d(o_c2, n_units_disc * 4, f, f, 2, 2, 0.02, "SAME", "c3", relufactor=0.2)
-        o_c4 = general_conv2d(o_c3, n_units_disc * 8, f, f, 2, 2, 0.02, "SAME", "c4", relufactor=0.2)
-        o_c5 = general_conv2d(o_c4, 1, f, f, 1, 1, 0.02, "SAME", "c5",do_norm=False,do_relu=False)
-
-        return o_c5
+# x = tf.placeholder(dtype=tf.float32, shape=[None, 256, 256, 3])
+# y = build_discriminator([256, 256, 3], 5)
+# y.summary()
+#
+# flat_list = [layer for sublist in l for layer in y.layers]
+# d_A_vars = [w for w in [l.weights for l in y.layers]]
