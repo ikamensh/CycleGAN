@@ -1,11 +1,13 @@
 import tensorflow as tf
 
-from tensorflow.python.keras.layers import Conv2D, Conv2DTranspose, Input, Flatten, Dense, BatchNormalization
+from tensorflow.python.keras.layers import Conv2D, Conv2DTranspose, Input, Flatten, Dense, BatchNormalization, \
+    Add, Activation
 from tensorflow.python.keras.models import Model
+from tensorflow.python.keras.activations import selu
 from tensorflow.python.keras import backend as K
 import memory_saving_gradients
 
-tf.__dict__["gradients"] = memory_saving_gradients.gradients_memory
+# tf.__dict__["gradients"] = memory_saving_gradients.gradients_memory
 
 img_height = 256
 img_width = 256
@@ -25,7 +27,9 @@ def build_resnet_block(inputres, dim, name="resnet"):
     with tf.variable_scope(name):
 
         out_res = Conv2D(dim, kernel_size= (3,3), padding='same', activation='selu') (inputres)
-        out_res = Conv2D(dim, kernel_size=(3, 3), padding='same', activation='selu') (out_res)
+        out_res = Conv2D(dim, kernel_size=(3, 3), padding='same') (out_res)
+        out_res = Add() ([out_res, inputres])
+        out_res = Activation(activation='selu')(out_res)
         out_res = BatchNormalization()(out_res)
 
         return out_res
@@ -92,9 +96,9 @@ def build_discriminator(input_shape, n, name="discriminator"):
 #         return o_c5
 
 
-# x = tf.placeholder(dtype=tf.float32, shape=[None, 256, 256, 3])
-# y = build_discriminator([256, 256, 3], 5)
+# y = build_generator_resnet_n_blocks([256, 256, 3], 5)
 # y.summary()
+
 #
 # flat_list = [layer for sublist in l for layer in y.layers]
 # d_A_vars = [w for w in [l.weights for l in y.layers]]

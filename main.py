@@ -20,7 +20,7 @@ img_dir = "./output/imgs/"
 temp_check = 0
 
 max_images = 606
-batch_size = 1
+batch_size = 2
 pool_size = 100
 sample_size = 10
 save_training_images = True
@@ -98,10 +98,10 @@ class CycleGAN:
         adv_loss_A = tf.reduce_mean(tf.squared_difference(self.disc_fake_A, 1))
         adv_loss_B = tf.reduce_mean(tf.squared_difference(self.disc_fake_B, 1))
         
-        # g_loss_A = cyc_loss*10 + adv_loss_A
-        # g_loss_B = cyc_loss*10 + adv_loss_B
+        g_loss_A = cyc_loss*10 + adv_loss_A
+        g_loss_B = cyc_loss*10 + adv_loss_B
 
-        g_loss = cyc_loss*10 + adv_loss_A + adv_loss_B
+        # g_loss = cyc_loss*10 + adv_loss_A + adv_loss_B
 
         d_loss_A = (tf.reduce_mean(tf.square(self.fake_pool_rec_A)) + tf.reduce_mean(tf.squared_difference(self.disc_true_A, 1))) / 2.0
         d_loss_B = (tf.reduce_mean(tf.square(self.fake_pool_rec_B)) + tf.reduce_mean(tf.squared_difference(self.disc_true_B, 1))) / 2.0
@@ -117,15 +117,15 @@ class CycleGAN:
         d_B_vars = [var for var in model_vars if 'd_B' in var.name]
         g_B_vars = [var for var in model_vars if 'g_B' in var.name]
 
-        print([var.name for var in d_A_vars + d_B_vars + g_A_vars + g_B_vars])
+        # print([var.name for var in d_A_vars + d_B_vars + g_A_vars + g_B_vars])
 
         # self.d_A_trainer = optimizer.minimize(d_loss_A, var_list=d_A_vars, global_step = self.global_step)
         # self.d_B_trainer = optimizer.minimize(d_loss_B, var_list=d_B_vars, global_step = self.global_step)
-        # self.g_A_trainer = optimizer.minimize(g_loss_A, var_list=g_A_vars, global_step = self.global_step)
-        # self.g_B_trainer = optimizer.minimize(g_loss_B, var_list=g_B_vars, global_step = self.global_step)
+        self.g_A_trainer = optimizer.minimize(g_loss_A, var_list=g_A_vars, global_step = self.global_step)
+        self.g_B_trainer = optimizer.minimize(g_loss_B, var_list=g_B_vars, global_step = self.global_step)
 
         self.d_trainer = optimizer.minimize(d_loss, var_list=d_A_vars+d_B_vars, global_step = self.global_step)
-        self.g_trainer = optimizer.minimize(g_loss, var_list=g_A_vars+g_B_vars, global_step = self.global_step)
+        # self.g_trainer = optimizer.minimize(g_loss, var_list=g_A_vars+g_B_vars, global_step = self.global_step)
 
 
         # for var in self.model_vars: print(var.name)
@@ -192,7 +192,7 @@ class CycleGAN:
             # sess.run(init)
 
 
-            for epoch in range(402):
+            for epoch in range(802):
                 print ("In the epoch ", epoch)
                 if epoch % 50 == 1:
                     self.gen_A_to_B.save(check_dir +"g_B")
@@ -207,22 +207,14 @@ class CycleGAN:
                 for ptr in range(0, max_images // batch_size):
                     if ptr % 20 == 0:
                         print("In the iteration ",ptr)
-                        sess.run(self.g_trainer)
-                        sess.run(self.save_fakes)
-                        sess.run(self.d_trainer)
-                    else:
-                        sess.run(self.g_trainer)
-                        # sess.run(self.g_A_trainer)
-                        # sess.run(self.g_B_trainer)
-                        sess.run(self.save_fakes)
-                        sess.run(self.d_trainer)
 
 
-                    # sess.run(self.g_A_trainer)
-                    # sess.run(self.g_B_trainer)
-                    # sess.run(self.d_A_trainer)
-                    # sess.run(self.d_B_trainer)
-                    # sess.run([self.d_B_trainer, self.d_A_trainer])
+                    # sess.run(self.g_trainer)
+                    sess.run(self.g_A_trainer)
+                    sess.run(self.g_B_trainer)
+                    sess.run(self.save_fakes)
+                    sess.run(self.d_trainer)
+
 
                     # summary_str = sess.run(self.summary)
                     # writer.add_summary(summary_str, epoch*max_images + ptr)
