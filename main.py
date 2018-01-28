@@ -17,7 +17,7 @@ img_size = img_height * img_width
 
 to_train = True
 to_test = False
-to_restore = False
+to_restore = True
 output_path = "./output"
 check_dir = "./output/checkpoints/"
 temp_check = 0
@@ -217,7 +217,7 @@ class CycleGAN:
             init = (tf.global_variables_initializer(), tf.local_variables_initializer())
             sess.run(init)
 
-            for epoch in range(sess.run(self.global_step),100):                
+            for epoch in range(500):
                 print ("In the epoch ", epoch)
                 if epoch % 5 == 0:
                     saver.save(sess,os.path.join(check_dir,"cyclegan"),global_step=epoch)
@@ -226,7 +226,7 @@ class CycleGAN:
                 if(epoch < 100) :
                     curr_lr = 0.0002
                 else:
-                    curr_lr = 0.0002 - 0.0002*(epoch-100)/100
+                    curr_lr = 0.0002 - 0.0001*(epoch-100)/500
 
                 if(save_training_images):
                     self.save_training_images(sess, epoch)
