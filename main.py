@@ -4,7 +4,7 @@ import numpy as np
 import cv2
 from read_val import rainy, sunny
 from model import *
-from tensorflow.python.keras.applications import VGG19
+from vgg19 import VGG19
 from tensorflow.python.keras.models import Model
 from tensorflow.python.keras.layers import Input
 
@@ -17,7 +17,7 @@ img_size = img_height * img_width
 
 to_train = True
 to_test = False
-to_restore = True
+to_restore = False
 output_path = "./output"
 check_dir = "./output/checkpoints/"
 temp_check = 0
@@ -84,27 +84,26 @@ class CycleGAN:
             self.cyc_A = build_generator_resnet_9blocks(self.fake_B, "g_B")
             self.cyc_B = build_generator_resnet_9blocks(self.fake_A, "g_A")
 
-            my_in = Input([224,224,3])
-            vgg = VGG19(weights='imagenet', input_tensor=my_in)
-            out = vgg.get_layer('block4_pool')
-            self.vgg = Model(my_in, out)
-            patch_cycA = self.cyc_A[:,16:-16]
-            patch_cycB = self.cyc_B[:,16:-16]
-
-            self.vgg_cycA = self.vgg(patch_cycA)
-            self.vgg_cycB = self.vgg(patch_cycB)
-
-            patch_inA = self.input_A[:, 16:-16]
-            patch_inB = self.input_B[:, 16:-16]
-
-            self.vgg_inA = self.vgg(patch_inA)
-            self.vgg_inB = self.vgg(patch_inB)
-
-
-            scope.reuse_variables()
-
             self.fake_pool_rec_A = build_gen_discriminator(self.fake_pool_A, "d_A")
             self.fake_pool_rec_B = build_gen_discriminator(self.fake_pool_B, "d_B")
+
+        # my_in = Input([224, 224, 3])
+        # _, vgg = VGG19(weights='vgg19_weights_tf_dim_ordering_tf_kernels.h5', input_tensor=my_in)
+        _, self.vgg = VGG19(weights='vgg19_weights_tf_dim_ordering_tf_kernels.h5')
+
+        # out = vgg.get_layer('block5_conv2')
+        # self.vgg = Model(my_in, out)
+        patch_cycA = self.cyc_A[:, 16:-16]
+        patch_cycB = self.cyc_B[:, 16:-16]
+
+        self.vgg_cycA = self.vgg(patch_cycA)
+        self.vgg_cycB = self.vgg(patch_cycB)
+
+        patch_inA = self.input_A[:, 16:-16]
+        patch_inB = self.input_B[:, 16:-16]
+
+        self.vgg_inA = self.vgg(patch_inA)
+        self.vgg_inB = self.vgg(patch_inB)
 
     def loss_calc(self):
 
