@@ -114,13 +114,16 @@ class CycleGAN:
         *_trainer -> Variaous trainer for above loss functions
         *_summ -> Summary variables for above loss functions'''
 
-        cyc_loss = tf.reduce_mean(tf.abs(self.vgg_inA-self.vgg_cycA)) + tf.reduce_mean(tf.abs(self.vgg_inB-self.vgg_cycB))
+        cyc_loss_vgg = tf.reduce_mean(tf.abs(self.vgg_inA-self.vgg_cycA)) + tf.reduce_mean(tf.abs(
+            self.vgg_inB-self.vgg_cycB))
+        cyc_loss = tf.reduce_mean(tf.abs(self.input_A - self.cyc_A)) + tf.reduce_mean(
+            tf.abs(self.input_B - self.cyc_B))
         
         disc_loss_A = tf.reduce_mean(tf.squared_difference(self.fake_rec_A,1))
         disc_loss_B = tf.reduce_mean(tf.squared_difference(self.fake_rec_B,1))
         
-        g_loss_A = cyc_loss*10 + disc_loss_B
-        g_loss_B = cyc_loss*10 + disc_loss_A
+        g_loss_A = cyc_loss*5 + cyc_loss_vgg*5 + disc_loss_B
+        g_loss_B = cyc_loss*5 + cyc_loss_vgg*5 + disc_loss_A
 
         d_loss_A = (tf.reduce_mean(tf.square(self.fake_pool_rec_A)) + tf.reduce_mean(tf.squared_difference(self.rec_A,1)))/2.0
         d_loss_B = (tf.reduce_mean(tf.square(self.fake_pool_rec_B)) + tf.reduce_mean(tf.squared_difference(self.rec_B,1)))/2.0
