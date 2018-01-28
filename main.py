@@ -4,6 +4,11 @@ import numpy as np
 import cv2
 from read_val import rainy, sunny
 from model import *
+from tensorflow.python.keras.applications import VGG19
+from tensorflow.python.keras.models import Model
+from tensorflow.python.keras.layers import Input
+
+
 
 img_height = 256
 img_width = 256
@@ -52,6 +57,8 @@ class CycleGAN:
         self.cyc_A/ self.cyc_B -> Images generated after feeding self.fake_A/self.fake_B to corresponding generator. This is use to calcualte cyclic loss
         '''
 
+
+
         self.input_A = tf.placeholder(tf.float32, [batch_size, img_width, img_height, img_layer], name="input_A")
         self.input_B = tf.placeholder(tf.float32, [batch_size, img_width, img_height, img_layer], name="input_B")
         
@@ -77,6 +84,23 @@ class CycleGAN:
             self.cyc_A = build_generator_resnet_9blocks(self.fake_B, "g_B")
             self.cyc_B = build_generator_resnet_9blocks(self.fake_A, "g_A")
 
+            my_in = Input([224,224,3])
+            vgg = VGG19(weights='imagenet', input_tensor=my_in)
+            out = vgg.get_layer('block4_pool')
+            self.vgg = Model(my_in, out)
+            patch_cycA = self.cyc_A[:,16:-16]
+            patch_cycB = self.cyc_B[:,16:-16]
+
+            self.vgg_cycA = self.vgg(patch_cycA)
+            self.vgg_cycB = self.vgg(patch_cycB)
+
+            patch_inA = self.input_A[:, 16:-16]
+            patch_inB = self.input_B[:, 16:-16]
+
+            self.vgg_inA = self.vgg(patch_inA)
+            self.vgg_inB = self.vgg(patch_inB)
+
+
             scope.reuse_variables()
 
             self.fake_pool_rec_A = build_gen_discriminator(self.fake_pool_A, "d_A")
@@ -91,12 +115,12 @@ class CycleGAN:
         *_trainer -> Variaous trainer for above loss functions
         *_summ -> Summary variables for above loss functions'''
 
-        cyc_loss = tf.reduce_mean(tf.abs(self.input_A-self.cyc_A)) + tf.reduce_mean(tf.abs(self.input_B-self.cyc_B))
+        cyc_loss = tf.reduce_mean(tf.abs(self.vgg_inA-self.vgg_cycA)) + tf.reduce_mean(tf.abs(self.vgg_inB-self.vgg_cycB))
         
         disc_loss_A = tf.reduce_mean(tf.squared_difference(self.fake_rec_A,1))
         disc_loss_B = tf.reduce_mean(tf.squared_difference(self.fake_rec_B,1))
         
-        g_loss_A = cyc_loss*10 + disc_loss_B*3
+        g_loss_A = cyc_loss*10 + disc_loss_B
         g_loss_B = cyc_loss*10 + disc_loss_A
 
         d_loss_A = (tf.reduce_mean(tf.square(self.fake_pool_rec_A)) + tf.reduce_mean(tf.squared_difference(self.rec_A,1)))/2.0
